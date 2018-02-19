@@ -27,7 +27,7 @@ Adds a year column.
     """
     @> begin
         df
-        @transform(TradeDate = broadcast(x -> Dates.DateTime(x, "m/dd/yyyy"), :TradeDate),
+        @transform(TradeDate = broadcast(x -> Dates.Date(x, "m/dd/yyyy"), :TradeDate),
                    Offer = broadcast(x -> parse(Float64,  strip_punctuation(x)), :Offer),
                    Opening = broadcast(x -> parse(Float64,  strip_punctuation(x)), :Opening),
                    Close = broadcast(x -> parse(Float64,  strip_punctuation(x)), :Close),
