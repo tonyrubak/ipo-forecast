@@ -3,6 +3,7 @@ using DataFrames
 using DataFramesMeta
 using Lazy
 using Plots
+using StatPlots
 
 strip_punctuation = function(s)
     """
