@@ -61,11 +61,26 @@ describe(df[:PerOpenClose])
 # Feature Engineering
 spy = CSV.read("data/spy.csv")
 
+correct_date = function(date)
+    """
+    correct_date(date)
+
+returns the given date if the date is not a saturday or sunday, otherwise returns the previous friday
+    """
+    retdate = date
+    if (Dates.dayname(date) == "Saturday")
+        retdate -= Dates.Day(1)
+    elseif (Dates.dayname(date) == "Sunday")
+        retdate -= Dates.Day(2)
+    end
+    retdate
+end
+
 get_week_change = function(date)
     chg = 0
     try
-        day_ago = @where(spy, :Date .== date - Dates.Day(1))[1,:Close]
-        week_ago = @where(spy, :Date .== date - Dates.Day(8))[1,:Close]
+        day_ago = @where(spy, :Date .== correct_date(date - Dates.Day(1)))[1,:Close]
+        week_ago = @where(spy, :Date .== correct_date(date - Dates.Day(8)))[1,:Close]
         chg = (day_ago - week_ago) / week_ago
     catch
         println("error $date")
