@@ -40,5 +40,20 @@ end
 
 # Exploratory analysis
 
-df = CSV.read("data/ipo-data.csv")
+df = clean_data(CSV.read("data/ipo-data.csv"))
 
+# Look at the average performance on the first day for each year
+@df @based_on(DataFrames.groupby(df, :Year), means = mean(:FirstDay)) plot(:Year, :means, linetype = :bar)
+
+@df @based_on(DataFrames.groupby(df, :Year), medians = median(:FirstDay)) plot(:Year, :medians, linetype = :bar)
+
+# Summary statistics of first day change
+describe(df[:FirstDay])
+histogram(df[:FirstDay])
+
+# Add columns for change open to close and examine the data
+df = @transform(df,
+                DollarOpenClose = :Close - :Opening,
+                PerOpenClose = broadcast((x, y) -> x / y, (:Close - :Opening), :Opening) * 100)
+describe(df[:DollarOpenClose])
+describe(df[:PerOpenClose])
