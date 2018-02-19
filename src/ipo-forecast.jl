@@ -57,3 +57,20 @@ df = @transform(df,
                 PerOpenClose = broadcast((x, y) -> x / y, (:Close - :Opening), :Opening) * 100)
 describe(df[:DollarOpenClose])
 describe(df[:PerOpenClose])
+
+# Feature Engineering
+spy = CSV.read("data/spy.csv")
+
+get_week_change = function(date)
+    chg = 0
+    try
+        day_ago = @where(spy, :Date .== date - Dates.Day(1))[1,:Close]
+        week_ago = @where(spy, :Date .== date - Dates.Day(8))[1,:Close]
+        chg = (day_ago - week_ago) / week_ago
+    catch
+        println("error $date")
+    end
+    chg
+end
+
+df = @transform(df, WeekChg = map(x -> get_week_change(x), :TradeDate))
