@@ -5,6 +5,8 @@ using Lazy
 
 strip_punctuation = function(s)
     """
+    strip_punctuation(s)
+
 Takes a string and removes $ and %, and replaces () with - for negative numbers.
     """
     @> begin
@@ -16,6 +18,8 @@ end
 
 clean_data = function(df)
     """
+    clean_data(df)
+
 Convert the price columns from strings to numbers.
     """
     @> begin
