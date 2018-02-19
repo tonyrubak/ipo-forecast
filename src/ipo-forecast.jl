@@ -2,12 +2,13 @@ using CSV
 using DataFrames
 using DataFramesMeta
 using Lazy
+using Plots
 
 strip_punctuation = function(s)
     """
     strip_punctuation(s)
 
-Takes a string and removes $ and %, and replaces () with - for negative numbers.
+Takes a string and removes \$ and \%, and replaces () with - for negative numbers.
     """
     @> begin
         s
