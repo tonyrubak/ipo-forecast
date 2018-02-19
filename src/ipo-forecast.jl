@@ -76,12 +76,36 @@ returns the given date if the date is not a saturday or sunday, otherwise return
     retdate
 end
 
+get_day_close = function(date)
+    close = -1
+    if (Dates.dayname(date) == "Saturday")
+        date -= Dates.Day(1)
+    elseif (Dates.dayname(date) == "Sunday")
+        date -= Dates.Day(2)
+    end
+    while (close == -1)
+        tclose = @> begin
+            spy
+            @where(:Date .== date)
+            @select(:Close)
+        end
+        if (size(tclose)[1] > 0)
+            close = tclose[1,1]
+        elseif (Dates.dayname(date) == "Monday")
+            date -= Dates.Day(2)
+        end
+        date -= Dates.Day(1)
+    end
+    close
+end
+    
+
 get_week_change = function(date)
     chg = 0
     try
-        day_ago = @where(spy, :Date .== correct_date(date - Dates.Day(1)))[1,:Close]
-        week_ago = @where(spy, :Date .== correct_date(date - Dates.Day(8)))[1,:Close]
-        chg = (day_ago - week_ago) / week_ago
+        day_ago = get_day_close(date - Dates.Day(1))
+        week_ago = get_day_close(date - Dates.Day(8))
+        chg = (day_ago - week_ago) / week_ago * 100
     catch
         println("error $date")
     end
