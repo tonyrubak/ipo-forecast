@@ -34,7 +34,7 @@ Adds a year column.
                    FirstDay = broadcast(x -> parse(Float64,  strip_punctuation(x)), :FirstDay),
                    ChangeOpen = broadcast(x -> parse(Float64,  strip_punctuation(x)), :ChangeOpen),
                    ChangeClose = broadcast(x -> parse(Float64,  strip_punctuation(x)), :ChangeClose))
-        @transform(Year = Dates.year(:TradeDate))
+        @transform(Year = Dates.year.(:TradeDate))
     end
 end
 
