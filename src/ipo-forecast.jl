@@ -23,6 +23,7 @@ clean_data = function(df)
     clean_data(df)
 
 Convert the TradeDate column to a date and convert the price columns from strings to numbers.
+Adds a year column.
     """
     @> begin
         df
@@ -33,8 +34,11 @@ Convert the TradeDate column to a date and convert the price columns from string
                    FirstDay = broadcast(x -> parse(Float64,  strip_punctuation(x)), :FirstDay),
                    ChangeOpen = broadcast(x -> parse(Float64,  strip_punctuation(x)), :ChangeOpen),
                    ChangeClose = broadcast(x -> parse(Float64,  strip_punctuation(x)), :ChangeClose))
+        @transform(Year = Dates.year(:TradeDate))
     end
 end
+
+# Exploratory analysis
 
 df = CSV.read("data/ipo-data.csv")
 
