@@ -61,21 +61,6 @@ describe(df[:PerOpenClose])
 # Feature Engineering
 spy = CSV.read("data/spy.csv")
 
-correct_date = function(date)
-    """
-    correct_date(date)
-
-returns the given date if the date is not a saturday or sunday, otherwise returns the previous friday
-    """
-    retdate = date
-    if (Dates.dayname(date) == "Saturday")
-        retdate -= Dates.Day(1)
-    elseif (Dates.dayname(date) == "Sunday")
-        retdate -= Dates.Day(2)
-    end
-    retdate
-end
-
 get_day_close = function(date)
     close = -1
     if (Dates.dayname(date) == "Saturday")
