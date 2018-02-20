@@ -84,7 +84,6 @@ get_day_close = function(date)
     close
 end
     
-
 get_week_change = function(date)
     chg = 0
     try
@@ -97,4 +96,37 @@ get_week_change = function(date)
     chg
 end
 
-df = @transform(df, WeekChg = map(x -> get_week_change(x), :TradeDate))
+get_cto_change = function(date)
+    try
+        today_open = (@> begin
+                      spy
+                      @where(:Date .== date)
+                      @select(:Open)
+                      end)[1,1]
+        yday_close = get_day_close(date - Dates.Day(1))
+        (today_open - yday_close) / yday_close * 100
+    catch
+        println("error $date")
+    end
+end
+
+# Delete trades with erroneous dates (those with a trade date on the weeknde) and add
+# week and:
+# (1) prior week change S&P 500
+# (2) prior-day close to offer-day open change S&P 500
+# (3) ratio of $ change at open to opening price
+
+weekends = Set(["Saturday","Sunday"])
+
+df = @> begin
+    df
+    @where(map(x -> length(intersect(Set([Dates.dayname.(x)]), weekends)) .== 0, :TradeDate))
+    @transform(WeekChg = map(x -> get_week_change(x), :TradeDate),
+               CTOChg = map(x -> get_cto_change(x), :TradeDate),
+               GapOpenPct = :ChangeOpen ./ :Opening * 100,
+               OpenClosePct = (:ChangeClose .- :ChangeOpen) ./ :ChangeOpen * 100)
+end
+
+# Create the feature matrix
+features = hcat(ones(df[:GapOpenPct]), df[:GapOpenPct], df[:ChangeOpen], df[:Offer], df[:Opening],
+                df[:CTOChg], df[:WeekChg])
