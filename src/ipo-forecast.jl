@@ -4,6 +4,7 @@ using DataFramesMeta
 using Lazy
 using Plots
 using StatPlots
+using GLM
 
 strip_punctuation = function(s)
     """
@@ -125,7 +126,24 @@ df = @> begin
                GapOpenPct = :ChangeOpen ./ :Opening * 100,
                OpenClosePct = (:ChangeClose .- :ChangeOpen) ./ :ChangeOpen * 100)
 end
+ 
+# Classification: Use 2017+ for testing, rest of data for training
+# A success is determined as $ change open to close of greater than $1
 
-# Create the feature matrix
-features = hcat(ones(df[:GapOpenPct]), df[:GapOpenPct], df[:ChangeOpen], df[:Offer], df[:Opening],
-                df[:CTOChg], df[:WeekChg])
+train = @> begin
+    df
+    @where(:Year .< 2017)
+    @transform(Y = map(x -> x .> 1 ? 1 : 0, :DollarOpenClose))
+    @select(:GapOpenPct, :ChangeOpen, :Offer, :Opening, :CTOChg, :WeekChg, :Y)
+end
+
+test = @> begin
+    df
+    @where(:Year .>= 2017)
+    @transform(Y = map(x -> x .> 1 ? 1 : 0, :DollarOpenClose))
+    @select(:GapOpenPct, :ChangeOpen, :Offer, :Opening, :CTOChg, :WeekChg, :Y)
+end
+
+# Fit a logestic regression model
+m0 = glm(@formula(Y ~ GapOpenPct + ChangeOpen + Offer + Opening + CTOChg + WeekChg), train, Binomial(), LogitLink())
+pred = predict(m0, test)
