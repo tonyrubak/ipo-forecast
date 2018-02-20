@@ -110,8 +110,7 @@ get_cto_change = function(date)
     end
 end
 
-# Delete trades with erroneous dates (those with a trade date on the weeknde) and add
-# week and:
+# Delete trades with erroneous dates (those with a trade date on the weeknde) and add:
 # (1) prior week change S&P 500
 # (2) prior-day close to offer-day open change S&P 500
 # (3) ratio of $ change at open to opening price
