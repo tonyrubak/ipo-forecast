@@ -39,29 +39,6 @@ Adds a year column.
     end
 end
 
-# Exploratory analysis
-
-df = clean_data(CSV.read("data/ipo-data.csv"))
-
-# Look at the average performance on the first day for each year
-@df @based_on(DataFrames.groupby(df, :Year), means = mean(:FirstDay)) plot(:Year, :means, linetype = :bar)
-
-@df @based_on(DataFrames.groupby(df, :Year), medians = median(:FirstDay)) plot(:Year, :medians, linetype = :bar)
-
-# Summary statistics of first day change
-describe(df[:FirstDay])
-histogram(df[:FirstDay])
-
-# Add columns for change open to close and examine the data
-df = @transform(df,
-                DollarOpenClose = :Close - :Opening,
-                PerOpenClose = broadcast((x, y) -> x / y, (:Close - :Opening), :Opening) * 100)
-describe(df[:DollarOpenClose])
-describe(df[:PerOpenClose])
-
-# Feature Engineering
-spy = CSV.read("data/spy.csv")
-
 get_day_close = function(date)
     close = -1
     if (Dates.dayname(date) == "Saturday")
@@ -111,39 +88,65 @@ get_cto_change = function(date)
     end
 end
 
-# Delete trades with erroneous dates (those with a trade date on the weeknde) and add:
-# (1) prior week change S&P 500
-# (2) prior-day close to offer-day open change S&P 500
-# (3) ratio of $ change at open to opening price
+main = function()
+    # Load and clean data
+    
+    df = clean_data(CSV.read("data/ipo-data.csv"))
+    # Exploratory analysis
+    
+    # Look at the average performance on the first day for each year
+    @df @based_on(DataFrames.groupby(df, :Year), means = mean(:FirstDay)) plot(:Year, :means, linetype = :bar)
+    
+    @df @based_on(DataFrames.groupby(df, :Year), medians = median(:FirstDay)) plot(:Year, :medians, linetype = :bar)
 
-weekends = Set(["Saturday","Sunday"])
+    # Summary statistics of first day change
+    describe(df[:FirstDay])
+    histogram(df[:FirstDay])
+    
+    # Add columns for change open to close and examine the data
+    df = @transform(df,
+                    DollarOpenClose = :Close - :Opening,
+                    PerOpenClose = broadcast((x, y) -> x / y, (:Close - :Opening), :Opening) * 100)
+    describe(df[:DollarOpenClose])
+    describe(df[:PerOpenClose])
 
-df = @> begin
-    df
-    @where(map(x -> length(intersect(Set([Dates.dayname.(x)]), weekends)) .== 0, :TradeDate))
-    @transform(WeekChg = map(x -> get_week_change(x), :TradeDate),
-               CTOChg = map(x -> get_cto_change(x), :TradeDate),
-               GapOpenPct = :ChangeOpen ./ :Opening * 100,
-               OpenClosePct = (:ChangeClose .- :ChangeOpen) ./ :ChangeOpen * 100)
+    # Feature Engineering
+    spy = CSV.read("data/spy.csv")
+
+    # Delete trades with erroneous dates (those with a trade date on the weeknde) and add:
+    # (1) prior week change S&P 500
+    # (2) prior-day close to offer-day open change S&P 500
+    # (3) ratio of $ change at open to opening price
+    
+    weekends = Set(["Saturday","Sunday"])
+
+    df = @> begin
+        df
+        @where(map(x -> length(intersect(Set([Dates.dayname.(x)]), weekends)) .== 0, :TradeDate))
+        @transform(WeekChg = map(x -> get_week_change(x), :TradeDate),
+                   CTOChg = map(x -> get_cto_change(x), :TradeDate),
+                   GapOpenPct = :ChangeOpen ./ :Opening * 100,
+                   OpenClosePct = (:ChangeClose .- :ChangeOpen) ./ :ChangeOpen * 100)
+    end
+    
+    # Classification: Use 2017+ for testing, rest of data for training
+    # A success is determined as $ change open to close of greater than $1
+
+    train = @> begin
+        df
+        @where(:Year .< 2017)
+        @transform(Y = map(x -> x .> 1 ? 1 : 0, :DollarOpenClose))
+        @select(:GapOpenPct, :ChangeOpen, :Offer, :Opening, :CTOChg, :WeekChg, :Y)
+    end
+    
+    test = @> begin
+        df
+        @where(:Year .>= 2017)
+        @transform(Y = map(x -> x .> 1 ? 1 : 0, :DollarOpenClose))
+        @select(:GapOpenPct, :ChangeOpen, :Offer, :Opening, :CTOChg, :WeekChg, :Y)
+    end
+
+    # Fit a logestic regression model
+    m0 = glm(@formula(Y ~ GapOpenPct + ChangeOpen + Offer + Opening + CTOChg + WeekChg), train, Binomial(), LogitLink())
+    pred = predict(m0, test)
 end
- 
-# Classification: Use 2017+ for testing, rest of data for training
-# A success is determined as $ change open to close of greater than $1
-
-train = @> begin
-    df
-    @where(:Year .< 2017)
-    @transform(Y = map(x -> x .> 1 ? 1 : 0, :DollarOpenClose))
-    @select(:GapOpenPct, :ChangeOpen, :Offer, :Opening, :CTOChg, :WeekChg, :Y)
-end
-
-test = @> begin
-    df
-    @where(:Year .>= 2017)
-    @transform(Y = map(x -> x .> 1 ? 1 : 0, :DollarOpenClose))
-    @select(:GapOpenPct, :ChangeOpen, :Offer, :Opening, :CTOChg, :WeekChg, :Y)
-end
-
-# Fit a logestic regression model
-m0 = glm(@formula(Y ~ GapOpenPct + ChangeOpen + Offer + Opening + CTOChg + WeekChg), train, Binomial(), LogitLink())
-pred = predict(m0, test)
