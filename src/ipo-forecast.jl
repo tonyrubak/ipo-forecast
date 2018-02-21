@@ -94,16 +94,19 @@ kfold_cross_validate = function(data, model, k, prediction_rule, metric)
     rows = size(data)[1]
 
     # Divide the data into k folds
-    cut_len = floor(rows / k)
-    cuts = [0; map(x -> x * cut_len, 1:k-1); rows)
+    cut_len = Int64(floor(rows / k))
+    cuts = [0; map(x -> x * cut_len, 1:k-1); rows]
     folds = map(x -> data[cuts[x]+1:cuts[x+1],:], 1:k)
 
     # Perform validation
     while (i <= k)
-        train = deleteat!(copy(folds), i)
+        train = vcat(deleteat!(copy(folds), i)...)
         test = folds[i]
         m = model(train)
-        pushback!(scores, sum(map(x -> metric(test[:Y], map(y -> prediction_rule(y), predict(m, test))) .^ 2)))
+        preds = predict(m, test)
+        pred_class = map(x -> prediction_rule(x), preds)
+        error = sum(map((x, y) -> metric(x,y), test[:Y], pred_class))
+        push!(scores, error)
         i += 1
     end
 
@@ -142,9 +145,9 @@ main = function()
 
     df = @> begin
         df
-        @where(map(x -> length(intersect(Set([Dates.dayname.(x)]), weekends)) .== 0, :TradeDate))
-        @transform(WeekChg = map(x -> get_week_change(x), :TradeDate),
-                   CTOChg = map(x -> get_cto_change(x), :TradeDate),
+        @where(map(x -> ~(Dates.dayname(x) in weekends), :TradeDate))
+        @transform(WeekChg = map(x -> get_week_change(spy, x), :TradeDate),
+                   CTOChg = map(x -> get_cto_change(spy, x), :TradeDate),
                    GapOpenPct = :ChangeOpen ./ :Opening * 100,
                    OpenClosePct = (:ChangeClose .- :ChangeOpen) ./ :ChangeOpen * 100)
     end
@@ -167,6 +170,6 @@ main = function()
     end
 
     # Fit a logestic regression model
-    m0 = glm(@formula(Y ~ GapOpenPct + ChangeOpen + Offer + Opening + CTOChg + WeekChg), train, Binomial(), LogitLink())
-    pred = predict(m0, test)
+    kfold_cross_validate(train, (data -> glm(@formula(Y ~ GapOpenPct + ChangeOpen + Offer + Opening + CTOChg + WeekChg), data, Binomial(), LogitLink())), 4, (x -> x > 0.5 ? 1 : 0), ((x, y) -> (x - y) ^ 2))
+    # pred = predict(m0, test)
 end
