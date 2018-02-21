@@ -114,11 +114,12 @@ kfold_cross_validate = function(data, model, k, prediction_rule, metric)
         m = model(train)
         preds = predict(m, test)
         pred_class = map(x -> prediction_rule(x), preds)
-        error = sum(map((x, y) -> metric(x,y), test[:Y], pred_class))
-        push!(scores, error)
+        test = @transform(test, pred .= pred_class)
+        score = sum(metric.(test))
+        push!(scores, score)
         i += 1
     end
-
+    println(scores)
     return mean(scores)
 end
 
@@ -168,7 +169,7 @@ main = function()
         df
         @where(:Year .< 2017)
         @transform(Y = map(x -> x .> 1 ? 1 : 0, :DollarOpenClose))
-        @select(:GapOpenPct, :ChangeOpen, :Offer, :Opening, :CTOChg, :WeekChg, :Y)
+        @select(:GapOpenPct, :ChangeOpen, :Offer, :Opening, :CTOChg, :WeekChg, :Close, :Y)
     end
     
     test = @> begin
@@ -182,16 +183,21 @@ main = function()
 
     param = 0.
     results = []
+
+    metric = metric_profit
+    
     while (param <= 1.)
-        res = kfold_cross_validate(train, (data -> glm(@formula(Y ~ GapOpenPct + ChangeOpen + Offer + Opening + CTOChg + WeekChg), data, Binomial(), LogitLink())), 4, (x -> x > param ? 1 : 0), ((x, y) -> (x - y) ^ 2))
+        res = kfold_cross_validate(train, (data -> glm(@formula(Y ~ GapOpenPct + ChangeOpen + Offer + Opening + CTOChg + WeekChg), data, Binomial(), LogitLink())), 4, (x -> x >= param ? 1 : 0), metric)
         push!(results, res)
         param += 0.05
     end
-    pred_param = 0.05 * indmin(results)
+    pred_param = 0.05 * indmax(results)
 
     # Run model on test data with discovered prediction parameter
     m0 = glm(@formula(Y ~ GapOpenPct + ChangeOpen + Offer + Opening + CTOChg + WeekChg), train, Binomial(), LogitLink())
     test_pred = predict(m0, test)
-    test_classes = map(x -> x > pred_param ? 1 : 0, test_pred)
+    test_classes = map(x -> x >= pred_param ? 1 : 0, test_pred)
+    println(pred_param)
+
     test_classes
 end
