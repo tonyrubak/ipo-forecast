@@ -39,7 +39,7 @@ Adds a year column.
     end
 end
 
-get_day_close = function(date)
+get_day_close = function(data, date)
     close = -1
     if (Dates.dayname(date) == "Saturday")
         date -= Dates.Day(1)
@@ -48,7 +48,7 @@ get_day_close = function(date)
     end
     while (close == -1)
         tclose = @> begin
-            spy
+            data
             @where(:Date .== date)
             @select(:Close)
         end
@@ -62,29 +62,29 @@ get_day_close = function(date)
     close
 end
     
-get_week_change = function(date)
+get_week_change = function(data, date)
     chg = 0
     try
-        day_ago = get_day_close(date - Dates.Day(1))
-        week_ago = get_day_close(date - Dates.Day(8))
+        day_ago = get_day_close(data, date - Dates.Day(1))
+        week_ago = get_day_close(data, date - Dates.Day(8))
         chg = (day_ago - week_ago) / week_ago * 100
     catch
-        println("error $date")
+        println("error in week $date")
     end
     chg
 end
 
-get_cto_change = function(date)
+get_cto_change = function(data, date)
     try
         today_open = (@> begin
-                      spy
+                      data
                       @where(:Date .== date)
                       @select(:Open)
                       end)[1,1]
-        yday_close = get_day_close(date - Dates.Day(1))
+        yday_close = get_day_close(data, date - Dates.Day(1))
         (today_open - yday_close) / yday_close * 100
     catch
-        println("error $date")
+        println("error in cto $date")
     end
 end
 
@@ -111,29 +111,27 @@ kfold_cross_validate = function(data, model, k, prediction_rule, metric)
 end
 
 main = function()
-    # Load and clean data
-    
     df = clean_data(CSV.read("data/ipo-data.csv"))
+    spy = CSV.read("data/spy.csv")
     # Exploratory analysis
     
     # Look at the average performance on the first day for each year
-    @df @based_on(DataFrames.groupby(df, :Year), means = mean(:FirstDay)) plot(:Year, :means, linetype = :bar)
+    # @df @based_on(DataFrames.groupby(df, :Year), means = mean(:FirstDay)) plot(:Year, :means, linetype = :bar)
     
-    @df @based_on(DataFrames.groupby(df, :Year), medians = median(:FirstDay)) plot(:Year, :medians, linetype = :bar)
+    # @df @based_on(DataFrames.groupby(df, :Year), medians = median(:FirstDay)) plot(:Year, :medians, linetype = :bar)
 
     # Summary statistics of first day change
-    describe(df[:FirstDay])
-    histogram(df[:FirstDay])
+    #    describe(df[:FirstDay])
+    #    histogram(df[:FirstDay])
     
     # Add columns for change open to close and examine the data
     df = @transform(df,
                     DollarOpenClose = :Close - :Opening,
                     PerOpenClose = broadcast((x, y) -> x / y, (:Close - :Opening), :Opening) * 100)
-    describe(df[:DollarOpenClose])
-    describe(df[:PerOpenClose])
+    # describe(df[:DollarOpenClose])
+    # describe(df[:PerOpenClose])
 
     # Feature Engineering
-    spy = CSV.read("data/spy.csv")
 
     # Delete trades with erroneous dates (those with a trade date on the weekend) and add:
     # (1) prior week change S&P 500
