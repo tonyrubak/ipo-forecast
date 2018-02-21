@@ -88,6 +88,10 @@ get_cto_change = function(date)
     end
 end
 
+kfold_cross_validate = function(data, model, k, prediction_rule, metric)
+    
+end
+
 main = function()
     # Load and clean data
     
@@ -113,7 +117,7 @@ main = function()
     # Feature Engineering
     spy = CSV.read("data/spy.csv")
 
-    # Delete trades with erroneous dates (those with a trade date on the weeknde) and add:
+    # Delete trades with erroneous dates (those with a trade date on the weekend) and add:
     # (1) prior week change S&P 500
     # (2) prior-day close to offer-day open change S&P 500
     # (3) ratio of $ change at open to opening price
