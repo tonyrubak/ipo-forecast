@@ -89,7 +89,25 @@ get_cto_change = function(date)
 end
 
 kfold_cross_validate = function(data, model, k, prediction_rule, metric)
-    
+    scores = []
+    i = 1
+    rows = size(data)[1]
+
+    # Divide the data into k folds
+    cut_len = floor(rows / k)
+    cuts = [0; map(x -> x * cut_len, 1:k-1); rows)
+    folds = map(x -> data[cuts[x]+1:cuts[x+1],:], 1:k)
+
+    # Perform validation
+    while (i <= k)
+        train = deleteat!(copy(folds), i)
+        test = folds[i]
+        m = model(train)
+        pushback!(scores, sum(map(x -> metric(test[:Y], map(y -> prediction_rule(y), predict(m, test))) .^ 2)))
+        i += 1
+    end
+
+    return mean(scores)
 end
 
 main = function()
