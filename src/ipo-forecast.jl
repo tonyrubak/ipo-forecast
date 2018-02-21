@@ -88,6 +88,15 @@ get_cto_change = function(data, date)
     end
 end
 
+metric_profit = function(data)
+    data = data[data[:pred] .== 1,:]
+    data[:Close] - data[:Opening]
+end
+
+metric_error = function(data)
+    (data[:Y] - data[:pred]) .^ 2
+end
+
 kfold_cross_validate = function(data, model, k, prediction_rule, metric)
     scores = []
     i = 1
