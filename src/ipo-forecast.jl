@@ -166,10 +166,23 @@ main = function()
         df
         @where(:Year .>= 2017)
         @transform(Y = map(x -> x .> 1 ? 1 : 0, :DollarOpenClose))
-        @select(:GapOpenPct, :ChangeOpen, :Offer, :Opening, :CTOChg, :WeekChg, :Y)
+        @select(:GapOpenPct, :ChangeOpen, :Offer, :Opening, :CTOChg, :WeekChg, :Close, :Y)
     end
 
-    # Fit a logestic regression model
-    kfold_cross_validate(train, (data -> glm(@formula(Y ~ GapOpenPct + ChangeOpen + Offer + Opening + CTOChg + WeekChg), data, Binomial(), LogitLink())), 4, (x -> x > 0.5 ? 1 : 0), ((x, y) -> (x - y) ^ 2))
-    # pred = predict(m0, test)
+    # Attempt to find an accurate parameter for class detection
+
+    param = 0.
+    results = []
+    while (param <= 1.)
+        res = kfold_cross_validate(train, (data -> glm(@formula(Y ~ GapOpenPct + ChangeOpen + Offer + Opening + CTOChg + WeekChg), data, Binomial(), LogitLink())), 4, (x -> x > param ? 1 : 0), ((x, y) -> (x - y) ^ 2))
+        push!(results, res)
+        param += 0.05
+    end
+    pred_param = 0.05 * indmin(results)
+
+    # Run model on test data with discovered prediction parameter
+    m0 = glm(@formula(Y ~ GapOpenPct + ChangeOpen + Offer + Opening + CTOChg + WeekChg), train, Binomial(), LogitLink())
+    test_pred = predict(m0, test)
+    test_classes = map(x -> x > pred_param ? 1 : 0, test_pred)
+    test_classes
 end
